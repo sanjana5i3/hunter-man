@@ -1,0 +1,21 @@
+using UnityEngine;
+
+public class Coincollections : MonoBehaviour
+{
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("Player")) // Check if the collider belongs to the player
+        {
+            Player1 player = other.GetComponent<Player1>(); // Assuming Player1 script is attached to the player GameObject
+
+            if (player != null)
+            {
+                player.coins++; // Increase the player's coin count (assuming 'coins' is a public variable in Player1)
+
+                // Optionally, you can play a sound or show a particle effect here
+
+                Destroy(gameObject); // Destroy the coin GameObject
+            }
+        }
+    }
+}
