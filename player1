@@ -1,0 +1,233 @@
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+
+public class Player1 : MonoBehaviour
+{
+    public float moveSpeed = 5f;
+    public float rotationSpeed = 100f;
+    public bool isAttacking = false;
+    public bool isPlayer;
+    public Player1 player1;
+    public Enemy Enemy;
+
+    public Animator animator;
+    public AudioSource audioSource;
+    private Enemy enemy; // Reference to the enemy
+
+    public int coins; // Player's coin count
+    public int health = 100; // Player's health
+    public Slider healthbar;
+
+    // UI elements
+    public Text coinsText;
+    public Text healthText; // Text element to display health
+
+    // New variables
+    public float attackDistance = 2f;
+    private bool isDead = false; // Track if the player is dead
+
+    void Start()
+    {
+        animator = GetComponent<Animator>();
+        audioSource = GetComponent<AudioSource>();
+        enemy = FindObjectOfType<Enemy>(); // Assuming there is only one enemy in the scene
+
+        // Initialize UI
+        UpdateCoinsUI();
+        UpdateHealthUI();
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("coin"))
+        {
+            coins++; // Increment the coin count
+            other.gameObject.SetActive(false); // Deactivate the coin GameObject
+
+            // Update UI
+            UpdateCoinsUI();
+        }
+        if (other.CompareTag("Player") && !isPlayer && player1.isAttacking)
+        {
+          //  other.GetComponent<Player1>().TakeDamage(10);
+        }
+        else if (other.CompareTag("Enemy") && isPlayer)
+        {
+            other.GetComponent<Enemy>().TakeDamage(10);
+        }
+    }
+
+    void Update()
+    {
+        healthbar.value = health;
+        if (isDead) return; // Don't allow player actions if dead
+
+            bool isMoving = false;
+        bool isRotatingLeft = false;
+        bool isRotatingRight = false;
+
+        // Move forward when the up arrow is pressed
+        if (Input.GetKey(KeyCode.UpArrow))
+        {
+            Vector3 forwardMovement = transform.forward * moveSpeed * Time.deltaTime;
+            forwardMovement.y = 0; // Ensure no vertical movement
+            transform.position += forwardMovement;
+            isMoving = true;
+
+            // Play move sound
+        }
+
+        // Rotate left when the left arrow is pressed
+        if (Input.GetKey(KeyCode.LeftArrow))
+        {
+            transform.Rotate(Vector3.up, -rotationSpeed * Time.deltaTime);
+            isRotatingLeft = true;
+
+            // Play rotate left sound
+        }
+
+        // Rotate right when the right arrow is pressed
+        if (Input.GetKey(KeyCode.RightArrow))
+        {
+            transform.Rotate(Vector3.up, rotationSpeed * Time.deltaTime);
+            isRotatingRight = true;
+
+            // Play rotate right sound
+        }
+
+        // Set animation parameters
+        animator.SetBool("isMoving", isMoving);
+        animator.SetBool("isRotatingLeft", isRotatingLeft);
+        animator.SetBool("isRotatingRight", isRotatingRight);
+
+        // Stop audio if no key is pressed
+        if (!isMoving && !isRotatingLeft && !isRotatingRight)
+        {
+            audioSource.Stop();
+        }
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            Attack();
+        }
+
+        // Check if enemy is within attack distance and trigger defend animation
+        if (enemy != null)
+        {
+            float distanceToEnemy = Vector3.Distance(transform.position, enemy.transform.position);
+            if (distanceToEnemy <= attackDistance)
+            {
+                Defend();
+            }
+        }
+    }
+
+    public Transform cameraT;
+    public float followSpeed;
+    public float distFromPlayer;
+
+    public void CameraControls()
+    {
+        Vector3 playerPos = transform.position;
+        Vector3 targetLoc = Vector3.Lerp(cameraT.position, playerPos, followSpeed * Time.deltaTime);
+        targetLoc.z = playerPos.z - distFromPlayer;
+        cameraT.position = targetLoc;
+    }
+
+    // Update UI with current coin count
+    void UpdateCoinsUI()
+    {
+        coinsText.text = "Score: " + coins.ToString();
+    }
+
+    // Update UI with current health
+    void UpdateHealthUI()
+    {
+      //  healthText.text = "Health: " + health.ToString();
+    }
+
+    // Optional: Save coins to PlayerPrefs for persistence
+    void SaveCoins()
+    {
+        PlayerPrefs.SetInt("Coins", coins);
+        PlayerPrefs.Save();
+    }
+
+    // Optional: Load coins from PlayerPrefs
+    void LoadCoins()
+    {
+        coins = PlayerPrefs.GetInt("Coins", 0);
+    }
+
+    // Optional: Reset coins (for debugging or game setup)
+    void ResetCoins()
+    {
+        coins = 0;
+        SaveCoins();
+        UpdateCoinsUI();
+    }
+
+    // Play sound with optional clip
+    void PlaySound(AudioClip clip = null)
+    {
+        if (clip != null)
+        {
+            audioSource.clip = clip;
+            audioSource.Play();
+            Debug.Log("Playing sound: " + clip.name); // Add debug log
+        }
+        else
+        {
+            Debug.Log("No audio clip assigned!"); // Add debug log
+        }
+    }
+
+    // Player defends against enemy attack
+    public void Defend()
+    {
+        animator.SetTrigger("Defend");
+    }
+
+    // Player attacks
+    public void Attack()
+    {
+        animator.SetTrigger("Attack");
+
+        // Check if the enemy is within attack distance
+        if (enemy != null)
+        {
+            float distanceToEnemy = Vector3.Distance(transform.position, enemy.transform.position);
+            if (distanceToEnemy <= attackDistance)
+            {
+                enemy.Defend(); // Enemy performs defend animation
+                enemy.TakeDamage(10); // Pass the damage value (e.g., 10) to the TakeDamage method
+            }
+        }
+    }
+
+    // Player takes damage
+    public void TakeDamage(int damage)
+    {
+        health -= damage; // Reduce health by the specified damage amount
+        UpdateHealthUI(); // Update health UI
+
+        if (health <= 0)
+        {
+            Die();
+            SceneManager.LoadScene(2);
+        }
+        else
+        {
+            Defend();// Perform defend animation when taking damage
+        }
+    }
+
+    // Player dies
+    public void Die()
+    {
+        isDead = true;
+        animator.SetTrigger("Die");
+        // Additional logic for player death can be added here (e.g., game over screen)
+    }
+}
